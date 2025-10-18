@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+
+{% block title %}Просмотр данных - Excel to DB{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Данные таблицы: {{ data_table.name }}</h2>
+    <a href="/dashboard" class="btn btn-secondary">Назад к шаблонам</a>
+</div>
+
+{% if records %}
+<div class="table-responsive">
+    <table class="table table-striped table-bordered">
+        <thead>
+            <tr>
+                <th>ID</th>
+                {% for field in data_table.template.fields %}
+                <th>{{ field.name }}</th>
+                {% endfor %}
+                <th>Действия</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for record in records %}
+            <tr>
+                <td>{{ record.id }}</td>
+                {% for field in data_table.template.fields %}
+                <td>
+                    {% if field.name in record.data %}
+                        {{ record.data[field.name] }}
+                    {% else %}
+                        <span class="text-muted">-</span>
+                    {% endif %}
+                </td>
+                {% endfor %}
+                <td>
+                    <button class="btn btn-sm btn-outline-primary" onclick="editRecord({{ record.id }})">Редактировать</button>
+                    <button class="btn btn-sm btn-outline-danger" onclick="deleteRecord({{ record.id }})">Удалить</button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="alert alert-info">
+    В этой таблице пока нет данных.
+</div>
+{% endif %}
+
+<!-- Модальное окно редактирования -->
+<div class="modal fade" id="editModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Редактирование записи</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editForm">
+                    <input type="hidden" id="editRecordId">
+                    <div id="editFieldsContainer">
+                        <!-- Поля для редактирования -->
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-primary" onclick="saveRecord()">Сохранить</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+async function editRecord(recordId) {
+    try {
+        const token = localStorage.getItem('access_token');
+        const response = await fetch(`/api/tables/{{ data_table.id }}/records`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (response.ok) {
+            const records = await response.json();
+            const record = records.find(r => r.id === recordId);
+            
+            if (record) {
+                document.getElementById('editRecordId').value = recordId;
+                const container = document.getElementById('editFieldsContainer');
+                container.innerHTML = '';
+                
+                {% for field in data_table.template.fields %}
+                const value = record.data['{{ field.name }}'] || '';
+                const fieldHtml = `
+                <div class="mb-3">
+                    <label for="edit_{{ field.name }}" class="form-label">{{ field.name }} ({{ field.type }})</label>
+                    <input type="text" class="form-control" id="edit_{{ field.name }}" value="${value}">
+                </div>
+                `;
+                container.innerHTML += fieldHtml;
+                {% endfor %}
+                
+                new bootstrap.Modal(document.getElementById('editModal')).show();
+            }
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Ошибка при загрузке данных для редактирования');
+    }
+}
+
+async function saveRecord() {
+    try {
+        const recordId = document.getElementById('editRecordId').value;
+        const data = {};
+        
+        {% for field in data_table.template.fields %}
+        const fieldValue = document.getElementById('edit_{{ field.name }}').value;
+        // Преобразование типов
+        {% if field.type == 'number' %}
+        data['{{ field.name }}'] = fieldValue ? parseFloat(fieldValue) : null;
+        {% elif field.type == 'boolean' %}
+        data['{{ field.name }}'] = fieldValue.toLowerCase() === 'true' || fieldValue === '1';
+        {% else %}
+        data['{{ field.name }}'] = fieldValue;
+        {% endif %}
+        {% endfor %}
+
+        const token = localStorage.getItem('access_token');
+        const response = await fetch(`/api/records/${recordId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ data: data })
+        });
+
+        if (response.ok) {
+            location.reload();
+        } else {
+            const error = await response.json();
+            alert('Ошибка при сохранении: ' + error.detail);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Ошибка при сохранении');
+    }
+}
+
+async function deleteRecord(recordId) {
+    if (confirm('Вы уверены, что хотите удалить эту запись?')) {
+        try {
+            const token = localStorage.getItem('access_token');
+            const response = await fetch(`/api/records/${recordId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (response.ok) {
+                location.reload();
+            } else {
+                const error = await response.json();
+                alert('Ошибка при удалении: ' + error.detail);
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Ошибка при удалении');
+        }
+    }
+}
+</script>
+{% endblock %}

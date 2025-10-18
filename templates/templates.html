@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block title %}Мои шаблоны - Excel to DB{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Мои шаблоны</h2>
+    <a href="/templates/create" class="btn btn-primary">Создать шаблон</a>
+</div>
+
+<div class="row">
+    {% if templates %}
+        {% for template in templates %}
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">{{ template.name }}</h5>
+                    <p class="card-text">{{ template.description or 'Без описания' }}</p>
+                    <p class="card-text">
+                        <small class="text-muted">
+                            Полей: {{ template.fields | length }}<br>
+                            Создан: {{ template.created_at.strftime('%d.%m.%Y %H:%M') }}
+                        </small>
+                    </p>
+                    <div class="btn-group" role="group">
+                        <a href="/templates/{{ template.id }}/upload" class="btn btn-sm btn-outline-primary">Загрузить данные</a>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="viewTemplateTables({{ template.id }})">Просмотреть таблицы</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+    <div class="col-12">
+        <div class="alert alert-info">
+            У вас пока нет шаблонов. <a href="/templates/create">Создайте первый шаблон</a>.
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Модальное окно для таблиц шаблона -->
+<div class="modal fade" id="tablesModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Таблицы шаблона</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="tablesList"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+async function viewTemplateTables(templateId) {
+    try {
+        const token = localStorage.getItem('access_token');
+        const response = await fetch(`/api/templates/${templateId}/tables`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        let tablesHtml = '<h6>Загруженные таблицы:</h6>';
+        
+        if (response.ok) {
+            const tables = await response.json();
+            if (tables.length > 0) {
+                tables.forEach(table => {
+                    tablesHtml += `
+                        <div class="card mb-2">
+                            <div class="card-body py-2">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span>${table.name}</span>
+                                    <a href="/tables/${table.id}/view" class="btn btn-sm btn-outline-primary">Просмотреть</a>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+            } else {
+                tablesHtml += '<p class="text-muted">Нет загруженных таблиц</p>';
+            }
+        } else {
+            tablesHtml += '<p class="text-muted">Ошибка при загрузке таблиц</p>';
+        }
+        
+        document.getElementById('tablesList').innerHTML = tablesHtml;
+        new bootstrap.Modal(document.getElementById('tablesModal')).show();
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Ошибка при загрузке таблиц: ' + error);
+    }
+}
+</script>
+{% endblock %}

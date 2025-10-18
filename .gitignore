@@ -1,0 +1,29 @@
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Database
+*.db
+*.sqlite
+
+# Uploads
+uploads/
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+
+# Environment
+.env
+.env.local

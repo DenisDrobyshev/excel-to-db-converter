@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+
+{% block title %}Создание шаблона - Excel to DB{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        <h2 class="mb-4">Создание шаблона таблицы</h2>
+
+        <form id="createTemplateForm">
+            <div class="mb-3">
+                <label for="name" class="form-label">Название шаблона *</label>
+                <input type="text" class="form-control" id="name" required>
+            </div>
+
+            <div class="mb-3">
+                <label for="description" class="form-label">Описание</label>
+                <textarea class="form-control" id="description" rows="2"></textarea>
+            </div>
+
+            <div class="mb-4">
+                <h5>Поля таблицы</h5>
+                <div id="fieldsContainer">
+                    <!-- Поля будут добавляться здесь -->
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-primary mt-2" onclick="addField()">+ Добавить поле</button>
+            </div>
+
+            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                <button type="button" class="btn btn-secondary me-md-2" onclick="window.history.back()">Отмена</button>
+                <button type="submit" class="btn btn-primary">Создать шаблон</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    let fieldCount = 0;
+
+    function addField(name = '', type = 'string', required = false, unique = false) {
+        const fieldId = `field_${fieldCount++}`;
+        const fieldHtml = `
+        <div class="card mb-2 field-item" id="${fieldId}">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <label class="form-label">Имя поля *</label>
+                        <input type="text" class="form-control field-name" value="${name}" required>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Тип *</label>
+                        <select class="form-select field-type">
+                            <option value="string" ${type === 'string' ? 'selected' : ''}>Строка</option>
+                            <option value="number" ${type === 'number' ? 'selected' : ''}>Число</option>
+                            <option value="date" ${type === 'date' ? 'selected' : ''}>Дата</option>
+                            <option value="boolean" ${type === 'boolean' ? 'selected' : ''}>Логический</option>
+                            <option value="email" ${type === 'email' ? 'selected' : ''}>Email</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="form-check mt-4">
+                            <input class="form-check-input field-required" type="checkbox" ${required ? 'checked' : ''}>
+                            <label class="form-check-label">Обязательное</label>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="form-check mt-4">
+                            <input class="form-check-input field-unique" type="checkbox" ${unique ? 'checked' : ''}>
+                            <label class="form-check-label">Уникальное</label>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <button type="button" class="btn btn-sm btn-outline-danger mt-3" onclick="removeField('${fieldId}')">Удалить</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        `;
+        document.getElementById('fieldsContainer').insertAdjacentHTML('beforeend', fieldHtml);
+    }
+
+    function removeField(fieldId) {
+        const fieldElement = document.getElementById(fieldId);
+        if (fieldElement) {
+            fieldElement.remove();
+        }
+    }
+
+    // Добавляем первое поле по умолчанию
+    document.addEventListener('DOMContentLoaded', function() {
+        addField();
+    });
+
+    document.getElementById('createTemplateForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        const name = document.getElementById('name').value;
+        const description = document.getElementById('description').value;
+
+        const fields = [];
+        const fieldElements = document.getElementsByClassName('field-item');
+        for (let fieldElement of fieldElements) {
+            const fieldName = fieldElement.querySelector('.field-name').value;
+            const fieldType = fieldElement.querySelector('.field-type').value;
+            const fieldRequired = fieldElement.querySelector('.field-required').checked;
+            const fieldUnique = fieldElement.querySelector('.field-unique').checked;
+
+            if (fieldName) {
+                fields.push({
+                    name: fieldName,
+                    type: fieldType,
+                    required: fieldRequired,
+                    unique: fieldUnique,
+                    validation_rules: []
+                });
+            }
+        }
+
+        if (fields.length === 0) {
+            alert('Добавьте хотя бы одно поле');
+            return;
+        }
+
+        const templateData = {
+            name: name,
+            description: description,
+            fields: fields,
+            validation_rules: {}
+        };
+
+        try {
+            const token = localStorage.getItem('access_token');
+            const response = await fetch('/api/templates', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(templateData)
+            });
+
+            if (response.ok) {
+                window.location.href = '/dashboard';
+            } else {
+                const error = await response.json();
+                alert('Ошибка при создании шаблона: ' + error.detail);
+            }
+        } catch (error) {
+            alert('Ошибка сети: ' + error);
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+
+{% block title %}Загрузка данных - Excel to DB{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <h2 class="mb-4">Загрузка данных в шаблон "{{ template.name }}"</h2>
+
+        <div class="card mb-4">
+            <div class="card-body">
+                <h5 class="card-title">Требования к файлу</h5>
+                <ul>
+                    <li>Файл должен быть в формате XLSX или XLS</li>
+                    <li>Первая строка должна содержать заголовки столбцов</li>
+                    <li>Соответствие столбцов шаблону:</li>
+                </ul>
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Поле</th>
+                            <th>Тип</th>
+                            <th>Обязательное</th>
+                            <th>Уникальное</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for field in template.fields %}
+                        <tr>
+                            <td>{{ field.name }}</td>
+                            <td>{{ field.type }}</td>
+                            <td>{% if field.required %}Да{% else %}Нет{% endif %}</td>
+                            <td>{% if field.unique %}Да{% else %}Нет{% endif %}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <form id="uploadForm" enctype="multipart/form-data">
+            <div class="mb-3">
+                <label for="table_name" class="form-label">Название таблицы *</label>
+                <input type="text" class="form-control" id="table_name" required>
+            </div>
+
+            <div class="mb-3">
+                <label for="file" class="form-label">Excel файл *</label>
+                <input class="form-control" type="file" id="file" accept=".xlsx,.xls" required>
+            </div>
+
+            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                <a href="/dashboard" class="btn btn-secondary me-md-2">Отмена</a>
+                <button type="submit" class="btn btn-primary">Загрузить</button>
+            </div>
+        </form>
+
+        <div id="uploadResult" class="mt-4" style="display: none;"></div>
+    </div>
+</div>
+
+<script>
+    document.getElementById('uploadForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        const tableName = document.getElementById('table_name').value;
+        const fileInput = document.getElementById('file');
+        const file = fileInput.files[0];
+
+        if (!file) {
+            alert('Выберите файл');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('table_name', tableName);
+        formData.append('file', file);
+
+        try {
+            const token = localStorage.getItem('access_token');
+            const response = await fetch(`/api/templates/{{ template.id }}/upload`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                },
+                body: formData
+            });
+
+            const result = await response.json();
+            const resultDiv = document.getElementById('uploadResult');
+            resultDiv.style.display = 'block';
+
+            if (response.ok) {
+                resultDiv.innerHTML = `
+                    <div class="alert alert-success">
+                        <h5>Загрузка завершена успешно!</h5>
+                        <p>Обработано строк: ${result.processed_rows}</p>
+                        <p>Импортировано записей: ${result.imported_records}</p>
+                        ${result.errors.length > 0 ? `
+                            <p>Обнаружено ошибок: ${result.errors.length}</p>
+                            <details>
+                                <summary>Показать ошибки</summary>
+                                <ul>
+                                    ${result.errors.map(error => `<li>${error}</li>`).join('')}
+                                </ul>
+                            </details>
+                        ` : ''}
+                        <a href="/tables/${result.data_table_id}/view" class="btn btn-success mt-2">Просмотреть данные</a>
+                    </div>
+                `;
+            } else {
+                resultDiv.innerHTML = `
+                    <div class="alert alert-danger">
+                        <h5>Ошибка при загрузке</h5>
+                        <p>${result.detail || 'Неизвестная ошибка'}</p>
+                    </div>
+                `;
+            }
+        } catch (error) {
+            alert('Ошибка сети: ' + error);
+        }
+    });
+</script>
+{% endblock %}
