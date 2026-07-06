@@ -1,5 +1,11 @@
 # Конвертер Excel в базу данных
 
+[![Python](https://img.shields.io/badge/Python-3.8+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![SQLAlchemy](https://img.shields.io/badge/SQLAlchemy-ORM-D71F00)]()
+[![Uvicorn](https://img.shields.io/badge/Uvicorn-ASGI-499848)]()
+[![SQLite](https://img.shields.io/badge/SQLite-003B57?logo=sqlite&logoColor=white)]()
+
 Веб-приложение для преобразования Excel-файлов в структурированные таблицы базы данных с веб-интерфейсом.
 
 ## Возможности
